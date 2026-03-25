@@ -11,6 +11,19 @@ const {
   getTodoStats,
 } = require("../controllers/todoController");
 
+// Wrap multer so errors are caught and don't crash the request
+const uploadSingle = (req, res, next) => {
+  upload.single("image")(req, res, (err) => {
+    if (err) {
+      console.error("Upload error:", err.message);
+      // Continue without the image rather than crashing
+      req.file = null;
+      req.uploadError = err.message;
+    }
+    next();
+  });
+};
+
 // GET all / filtered
 router.get("/", getTodos);
 
@@ -21,10 +34,10 @@ router.get("/status", getTodoStats);
 router.get("/:id", getTodoById);
 
 // Create
-router.post("/", upload.single("image"), createTodo);
+router.post("/", uploadSingle, createTodo);
 
 // Update
-router.put("/:id", upload.single("image"), updateTodo);
+router.put("/:id", uploadSingle, updateTodo);
 
 // Delete
 router.delete("/:id", deleteTodo);
