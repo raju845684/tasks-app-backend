@@ -1,12 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const connectDB = require("./config/db");
 const todoRoutes = require("./routes/todoRoutes");
 
 dotenv.config();
-
-const connectDB = require("./config/db");
-connectDB();
 
 const app = express();
 
@@ -14,6 +12,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Ensure DB is connected before every request (safe for serverless cold starts)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("DB connection failed:", error.message);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
 
 // Routes
 app.use("/api/todos", todoRoutes);
@@ -23,10 +32,10 @@ app.use("/uploads", express.static("/tmp/uploads"));
 
 // Health check
 app.get("/", (req, res) => {
-  res.send("API is running...");
+  res.json({ status: "API is running", db: "connected" });
 });
 
-// Only start local server outside Vercel
+// Only start local server when not on Vercel
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
