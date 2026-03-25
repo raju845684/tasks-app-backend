@@ -18,19 +18,20 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/todos", todoRoutes);
 
-// Static
-app.use("/uploads", express.static("uploads"));
+// Static files from /tmp/uploads (writable on Vercel)
+app.use("/uploads", express.static("/tmp/uploads"));
 
-// Test
+// Health check
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-const PORT = process.env.PORT || 5000;
+// Only start local server outside Vercel
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-// app.listen(PORT, () => {
-//   console.log(`Server is Running Port: ${PORT}`);
-// });
-app.listen(PORT, "admin-local.knorex.com", () => {
-  console.log(`Server running on ${PORT}`);
-});
+module.exports = app;
