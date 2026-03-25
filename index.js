@@ -2,13 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
+const authRoutes = require("./routes/authRoutes");
 const todoRoutes = require("./routes/todoRoutes");
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,26 +18,19 @@ app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
-  } catch (error) {
-    console.error("DB connection failed:", error.message);
+  } catch (err) {
     res.status(500).json({ message: "Database connection failed" });
   }
 });
 
-// Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/todos", todoRoutes);
 
-// Health check
-app.get("/", (req, res) => {
-  res.json({ status: "API is running", db: "connected" });
-});
+app.get("/", (req, res) => res.json({ status: "API is running", db: "connected" }));
 
-// Only start local server when not on Vercel
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
 module.exports = app;
