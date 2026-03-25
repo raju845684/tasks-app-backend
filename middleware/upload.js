@@ -1,19 +1,13 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-// /tmp is the only writable directory on Vercel serverless
-const uploadDir = "/tmp/uploads";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "todo-app",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
+    transformation: [{ width: 500, height: 500, crop: "limit" }],
   },
 });
 

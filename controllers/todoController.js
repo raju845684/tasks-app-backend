@@ -25,6 +25,7 @@ exports.createTodo = async (req, res) => {
 
     const { title, date, priority, description } = req.body;
 
+    // Cloudinary returns the hosted URL in req.file.path
     const image = req.file ? req.file.path : "";
 
     const todo = await Todo.create({

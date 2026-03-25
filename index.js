@@ -27,9 +27,6 @@ app.use(async (req, res, next) => {
 // Routes
 app.use("/api/todos", todoRoutes);
 
-// Static files from /tmp/uploads (writable on Vercel)
-app.use("/uploads", express.static("/tmp/uploads"));
-
 // Health check
 app.get("/", (req, res) => {
   res.json({ status: "API is running", db: "connected" });
