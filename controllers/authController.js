@@ -103,19 +103,17 @@ exports.updateProfile = async (req, res) => {
     const { name } = req.body;
     if (!name?.trim()) return res.status(400).json({ message: "Name is required" });
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name: name.trim() },
-      { new: true }
-    ).select("-password");
+    const updateData = { name: name.trim() };
 
-    const token = require("jsonwebtoken").sign(
-      { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // Upload new avatar to Cloudinary if provided
+    if (req.file?.buffer) {
+      const uploadToCloudinary = require("../config/cloudinaryUpload");
+      updateData.avatar = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+    }
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+    const user = await User.findByIdAndUpdate(req.user.id, updateData, { new: true }).select("-password");
+
+    res.json({ token: signToken(user), user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
