@@ -1,4 +1,5 @@
 const Todo = require("../models/Todo");
+const uploadToCloudinary = require("../config/cloudinaryUpload");
 
 // GET all todos
 exports.getTodos = async (req, res) => {
@@ -29,14 +30,15 @@ exports.createTodo = async (req, res) => {
     const { title, date, priority, description } = req.body;
 
     if (!title || !date || !priority || !description) {
-      return res.status(400).json({ message: "All fields are required: title, date, priority, description" });
+      return res.status(400).json({
+        message: "All fields are required: title, date, priority, description",
+      });
     }
 
-    // req.file.path is the Cloudinary URL; falls back to "" if upload failed
-    const image = req.file ? req.file.path : "";
-
-    if (req.uploadError) {
-      console.warn("Image upload skipped:", req.uploadError);
+    // Upload buffer to Cloudinary if a file was attached
+    let image = "";
+    if (req.file?.buffer) {
+      image = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
     }
 
     const todo = await Todo.create({ title, date, priority, description, image });
@@ -51,10 +53,17 @@ exports.createTodo = async (req, res) => {
 exports.updateTodo = async (req, res) => {
   try {
     const updateData = { ...req.body };
-    if (req.file) {
-      updateData.image = req.file.path;
+
+    if (req.file?.buffer) {
+      updateData.image = await uploadToCloudinary(
+        req.file.buffer,
+        req.file.mimetype
+      );
     }
-    const todo = await Todo.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    const todo = await Todo.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+    });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
     res.json(todo);
   } catch (error) {
@@ -81,9 +90,12 @@ exports.getTodoStats = async (req, res) => {
       return res.json({ total: 0, completed: 0, inProgress: 0, notStarted: 0 });
     }
 
-    const completedCount = await Todo.countDocuments({ status: "Completed" });
-    const inProgressCount = await Todo.countDocuments({ status: "In Progress" });
-    const notStartedCount = await Todo.countDocuments({ status: "Not Started" });
+    const [completedCount, inProgressCount, notStartedCount] =
+      await Promise.all([
+        Todo.countDocuments({ status: "Completed" }),
+        Todo.countDocuments({ status: "In Progress" }),
+        Todo.countDocuments({ status: "Not Started" }),
+      ]);
 
     res.json({
       total,
