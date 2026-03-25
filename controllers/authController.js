@@ -96,3 +96,52 @@ exports.getMe = async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
   res.json(user);
 };
+
+// ── UPDATE PROFILE ────────────────────────────────────────────
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name?.trim()) return res.status(400).json({ message: "Name is required" });
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { name: name.trim() },
+      { new: true }
+    ).select("-password");
+
+    const token = require("jsonwebtoken").sign(
+      { id: user._id, name: user.name, email: user.email, avatar: user.avatar },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ── CHANGE PASSWORD ───────────────────────────────────────────
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword)
+      return res.status(400).json({ message: "Both fields are required" });
+    if (newPassword.length < 6)
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+
+    const user = await User.findById(req.user.id);
+    if (!user.password)
+      return res.status(400).json({ message: "Google accounts cannot change password here" });
+
+    const match = await require("bcryptjs").compare(currentPassword, user.password);
+    if (!match) return res.status(401).json({ message: "Current password is incorrect" });
+
+    user.password = await require("bcryptjs").hash(newPassword, 10);
+    await user.save();
+
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
