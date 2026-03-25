@@ -1,29 +1,37 @@
 const mongoose = require("mongoose");
 
-let cachedConnection = null;
+// Cache the connection promise so parallel requests on cold start
+// all wait on the same connection instead of racing each other.
+let connectionPromise = null;
 
 const connectDB = async () => {
-  // Reuse existing connection across warm serverless invocations
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  // Already connected — reuse
+  if (mongoose.connection.readyState === 1) return;
+
+  // Connection in progress — wait for it
+  if (connectionPromise) {
+    await connectionPromise;
+    return;
   }
 
   if (!process.env.MONGO_URI) {
     throw new Error("MONGO_URI environment variable is not set");
   }
 
+  connectionPromise = mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,
+    // bufferCommands: true (default) — let Mongoose queue operations
+    // while connecting instead of throwing immediately
+  });
+
   try {
-    cachedConnection = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      bufferCommands: false,
-    });
+    await connectionPromise;
     console.log("MongoDB Connected");
-    return cachedConnection;
   } catch (error) {
+    connectionPromise = null; // allow retry on next request
     console.error("MongoDB connection error:", error.message);
-    cachedConnection = null;
     throw error;
   }
 };
